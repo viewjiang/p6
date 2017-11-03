@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+<head>
+   <meta charset="utf-8">
+   <script src="https://d3js.org/d3.v4.js"></script>
+   <script src="https://d3js.org/d3-scale-chromatic.v0.3.js"></script>
+      <style>
+        h2 {
+          color: black;
+          text-align: center;
+        }
+        h3{
+          color:black;
+          text-align: left;
+        }
+        rect {
+          fill: lightBLue;
+          stroke: black;
+          stroke-width: 0.7;
+        }
+
+        div.months_buttons {
+           position: fixed;
+           top: 145px;
+           left: 25px;
+      }
+        div.months_buttons div {
+           background-color: rgb(251, 201, 127);
+           padding: 5px;
+           margin: 20px;
+      }
+      </style>
+      
+      <script type="text/javascript">
+        function draw(data){
+
+         	var margin = 125,
+         	    width = 1400 - margin,
+         	    height = 800 - margin;
+          var rectPadding = 60;
+          var rectWidth = 120;
+
+
+          d3.select("body")
+              .append("h2")
+              .text("Air Delay Reasons  2008");
+
+          d3.select("body")
+              .append("h3")
+              .text("2008 year Air Delay Reansons count")
+
+         	var svg = d3.select("body")
+         	   .append("svg")
+         	       .attr("width", width + margin)
+         	       .attr("height", height + margin)
+         	    .append('g')
+         	       .attr('class','chart');
+         	/*
+         	d3 建轴
+         	 */
+         	
+         	var x_reasons = ['CarrierDelay','WeatherDelay','NASDelay','SecurityDelay','LateAircraftDelay']; //x轴标签
+         	var x_scale = d3.scaleBand()
+                .domain(x_reasons)
+                .range([margin,width]);
+          var x_axis = d3.axisBottom(x_scale);
+
+          function countresons(ds,reasons){      //统计原因数量
+            var counts = [];
+            var count = 0;
+            reasons.forEach(function(d){
+              
+              for (var i = 0; i < ds.length ; i ++ ){
+                if(ds[i][d] !== "0.0"){
+                  
+                  count = count + 1;  
+                  }
+              }
+              counts.push(count);
+              count = 0;
+            })
+            return counts;
+          }
+
+             
+          var count_extent = [0,d3.max(countresons(data,x_reasons),function(d){
+                 return d;
+          })];    
+          var y_scale = d3.scaleLinear()
+                 .domain(count_extent)
+                 .range([height,margin]);
+          var y_axis = d3.axisLeft(y_scale);
+  
+          d3.select("svg")
+            .append('g')
+            .attr('class','x axis')                  //x轴
+            .attr('transform',"translate(0," + height + ")")
+            .call(x_axis);
+        
+          var yaxis =  d3.select("svg")              //y轴
+            .append('g')
+            .attr('class','y axis')
+            .attr('transform',"translate(" + margin + ",0)")
+            .call(y_axis);
+      
+          svg.append('g')                         //绘制柱形图
+             .selectAll("rect")
+             .data(countresons(data,x_reasons))
+             .enter()
+             .append("rect")
+             .attr("x",function(d,i){
+                   return margin + rectPadding + i * ((width - margin)/x_reasons.length);
+                   })
+             .attr("y",function(d){
+                    return y_scale(d);
+                   })
+             .attr("width", rectWidth)
+             .attr("height", function(d){
+                    return  height - y_scale(d);
+                   });
+          
+            setTimeout("function()",20000);    //延迟显示第一张图
+
+
+         
+             //动画
+            d3.select("h3")
+              .text("All months of 2008 Air Delay Reasons compare");
+
+            function agg_month(leaves){
+              cs = countresons(leaves,x_reasons);       //每月不同原因延机数量
+              return cs;
+            }
+
+            var nested = d3.nest()                     //通过月份进行聚合
+                           .key(function(d){
+                              return d['Month'];
+                            })
+                           .rollup(agg_month)
+                           .entries(data);
+            
+            var months = [];
+            for(var i = 1 ; i < 13; i++ ){
+              months.push(i);
+            } 
+             
+            function update(month){ 
+              var filtered = nested.filter(function(d){
+                return d['key'] === month.toString();
+              });
+              
+             d3.select("h2")
+                .text("Air Delay Reasons Count Of Months " + month );
+
+
+              d3.selectAll('rect').remove();   //移除柱形图
+             
+              var rects = svg.append('g')
+                             .selectAll('rect')
+                             .data(filtered[0].value)
+                             .enter()
+                             .append('rect')
+                             .attr("x",function(d,i){
+                                return margin + rectPadding + i * ((width - margin)/5);
+                               })
+                             .attr("y",function(d){
+                                return y_scales(d);
+                               })
+                              .attr("width", rectWidth)
+                              .attr("height", function(d){
+                                 return  height - y_scales(d);
+                               });
+             }
+        
+            
+              var count_extents = [0,120000];    //重新设置标尺
+              var y_scales = d3.scaleLinear()
+                 .domain(count_extents)
+                 .range([height,margin]);
+              var y_axis = d3.axisLeft(y_scales);
+
+              
+              yaxis.remove();                   //移除原Y轴
+              
+              d3.select("svg")                  //重设Y轴
+                .append('g')
+                .attr('class','y axis')
+                .attr('transform',"translate(" + margin + ",0)")
+                .call(y_axis);
+
+            var month_idx = 0;
+            var month_interval = setInterval(function(){
+              update(months[month_idx]);
+              month_idx++;
+
+              if(month_idx >= months.length){
+                clearInterval(month_interval);
+                debugger;
+                var buttons = d3.select('body')
+                       .append("div")
+                       .attr("class","months_buttons")
+                       .selectAll("div")
+                       .data(months)
+                       .enter()
+                       .append("div")
+                       .text(function(d){
+                          return d;
+                       });
+
+                buttons.on("click",function(d){
+                  d3.select(".months_buttons")
+                    .selectAll("div")
+                    .transition()
+                    .duration(500)
+                    .style("color","black")
+                    .style("background","rgb(251,201,127");
+
+                  d3.select(this)
+                    .transition()
+                    .duration(500)
+                    .style("background","lightBLue")
+                    .style("color","white");
+                  update(d);
+                });
+              }
+            },1000); 
+           
+         };
+      </script>
+
+</head>
+<body>
+   <script type="text/javascript">
+
+   d3.csv("2008s.csv",draw);
+   </script>
+</body>
+</html>
